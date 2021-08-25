@@ -7,94 +7,142 @@ using UnityEngine.U2D;
 public class TileMapManager : MonoBehaviour
 {
 
-    [SerializeField] private Camera mainCam;
-    private PixelPerfectCamera ppCam;
-
-    [SerializeField] private GameObject grid;
-    [SerializeField] private Tilemap tileMapPrefab;
     [SerializeField] private TileBase[] tiles;
+
     [SerializeField] private Tilemap tileMap;
+
+    [SerializeField]  private Vector2Int mapSize;
+
+    [SerializeField]  private int maxNumOfBlocks = 10;
+    [SerializeField]  private int currentNumOfSetBlocks = 0;
+
+    private bool hasStarted = false;
+    private bool boardSet = false;
+
+    [SerializeField] private bool autoStart = false;
+    [SerializeField] private float roundTime = 0.5f;
+    private bool looping = false;
 
     // Start is called before the first frame update
     void Start()
     {
-        tileMap = GameObject.FindObjectOfType<Tilemap>();
-        if (tileMap == null)
-            Debug.LogError("No TileMap found!");
-        if (mainCam != null)
-            ppCam = mainCam.GetComponent<PixelPerfectCamera>();
 
-        Vector2Int tileMapDims = GetCameraPixelSize();
-        ResetTileMap(new Vector3Int(-tileMapDims.x/2, -tileMapDims.y/2, 0), new Vector3Int(tileMapDims.x / 2 - 1, tileMapDims.y / 2 - 1, 0));
     }
 
     // Update is called once per frame
     void Update()
     {
-        Vector3Int tilemapPos = tileMap.WorldToCell(Camera.main.ScreenToWorldPoint(Input.mousePosition));
 
-        if (Input.GetButtonDown("Fire1"))
+        if (tileMap != null)
         {
-            if (tileMap.GetTile<Tile>(tilemapPos).name == "black")
-                ColorSelectedTile(tilemapPos);
+            CheckForInputs();
+        }
+    }
+
+    private void CheckForInputs()
+    {
+        if (Input.GetButtonDown("Fire1") && !hasStarted)
+        {
+            ToggleSelectedTile();
         }
 
         if (Input.GetButtonDown("Jump"))
         {
+            hasStarted = true;
+            if (hasStarted && !boardSet)
+            {
+                boardSet = true;
+                SetBoardInStone();
+            }
+            if (autoStart)
+            {
+                if (!looping)
+                {
+                    looping = true;
+                    StartCoroutine(AutoCalc());
+                }
+            }
+            else
+            {
+                int[,] newMap = CalculateStep();
+                SetTileMap(newMap);
+            }
+        }     
+        
+        if (Input.GetButtonDown("Cancel"))
+        {
+            looping = false;
+            autoStart = false;
+        }
+    }
+
+    private IEnumerator AutoCalc()
+    {
+        while(looping)
+        {
+            yield return new WaitForSeconds(roundTime);
             int[,] newMap = CalculateStep();
             SetTileMap(newMap);
         }
-
-
     }
 
-    public void ColorSelectedTile(Vector3Int selectedTilePos)
+    private void SetBoardInStone()
     {
-        tileMap.SetTile(selectedTilePos, tiles[1]);
+        for (int x = -mapSize.x / 2; x < mapSize.x / 2; x++)
+        {
+            for (int y = -mapSize.y / 2; y < mapSize.y / 2; y++)
+            {
+                Vector3Int pos = new Vector3Int(x, y, 0);
+                Tile tile = tileMap.GetTile<Tile>(pos);
+                if (tile != tiles[0] && tile != tiles[1] && tile != tiles[2])
+                    tileMap.SetTile(pos, tiles[0]);
+            }
+        }
     }
 
-    public void ResetTileMap(Vector3Int minPos, Vector3Int maxPos)
+    public void SetValues(Vector2Int levelSize, int numBlocks)
     {
-        tileMap.ClearAllTiles();
-
-        tileMap.SetTile(minPos, tiles[2]);
-        tileMap.SetTile(maxPos, tiles[2]);
-
-        // Red colored bounds
-        tileMap.BoxFill(Vector3Int.zero, tiles[2], tileMap.cellBounds.min.x, tileMap.cellBounds.min.y, tileMap.cellBounds.max.x, tileMap.cellBounds.max.y);
-        // Black colored interiour Tiles
-        tileMap.BoxFill(Vector3Int.zero, tiles[0], tileMap.cellBounds.min.x + 1, tileMap.cellBounds.min.y + 1, tileMap.cellBounds.max.x - 2, tileMap.cellBounds.max.y - 2);
+        mapSize = levelSize;
+        maxNumOfBlocks = numBlocks;
     }
 
-    public Vector2Int GetCameraPixelSize()
+    public void SetTileMap(Tilemap activeMap)
     {
-        int camSizeX = ppCam.refResolutionX;
-        int camSizeY = ppCam.refResolutionY;
-        Vector2Int camSize = new Vector2Int(camSizeX, camSizeY);
-        return camSize;
+        tileMap = activeMap;
     }
 
-    public void SetCameraPixelSize(Vector2Int newCamSize)
+    public void SetMapSize(Vector2Int mapSize)
     {
-        ppCam.refResolutionX = newCamSize.x;
-        ppCam.refResolutionY = newCamSize.y;
+        mapSize = this.mapSize;
+    }
+
+    public void ToggleSelectedTile()
+    {
+        Vector3Int tilemapPos = tileMap.WorldToCell(Camera.main.ScreenToWorldPoint(Input.mousePosition));         
+            if (currentNumOfSetBlocks < maxNumOfBlocks && tileMap.GetTile<Tile>(tilemapPos) == tiles[0])
+            {
+                tileMap.SetTile(tilemapPos, tiles[1]);
+                currentNumOfSetBlocks++;
+            }
+            else if (tileMap.GetTile<Tile>(tilemapPos) == tiles[1])
+            {
+                tileMap.SetTile(tilemapPos, tiles[0]);
+                currentNumOfSetBlocks--;
+            }
     }
 
     public int[,] CalculateStep()
     {
-
-        int[,] newTileMap = new int[ppCam.refResolutionX, ppCam.refResolutionY];
-
-        for (int x = tileMap.cellBounds.min.x; x < tileMap.cellBounds.max.x; x++)
+        int[,] newTileMap = new int[mapSize.x, mapSize.y];
+        for (int x = -mapSize.x / 2; x < mapSize.x / 2; x++)
         {
-            for (int y = tileMap.cellBounds.min.y; y < tileMap.cellBounds.max.y; y++)
+            for (int y = -mapSize.y / 2; y < mapSize.y / 2; y++)
             {
                 Vector3Int currentPos = new Vector3Int(x, y, 0);
-                Debug.Log(currentPos);
                 Tile currentTile = tileMap.GetTile<Tile>(currentPos);
-                if (currentTile.name == "red")
+                if (currentTile == tiles[2])
                 {
-                    newTileMap[x + ppCam.refResolutionX / 2, y + ppCam.refResolutionY / 2] = 2;
+                    newTileMap[x + mapSize.x / 2, y + mapSize.y / 2] = 2;
                     continue;
                 }
                 else
@@ -110,7 +158,7 @@ public class TileMapManager : MonoBehaviour
                                 try
                                 {
                                     Tile searchTile = tileMap.GetTile<Tile>(searchPos);
-                                    if (searchTile.name == "white")
+                                    if (searchTile == tiles[1])
                                         aliveCells++;
                                 }
                                 catch
@@ -120,23 +168,34 @@ public class TileMapManager : MonoBehaviour
                             }
                         }
                     }
-
                     if (aliveCells < 2 || aliveCells > 3)
                     {
-                        newTileMap[x + ppCam.refResolutionX / 2, y + ppCam.refResolutionY / 2] = 0;
+                        newTileMap[x + mapSize.x / 2, y + mapSize.y / 2] = 0;
                     }
-                    else if (aliveCells == 3 && currentTile.name == "black")
+                    else if (aliveCells == 3 && currentTile == tiles[0])
                     {
-                        newTileMap[x + ppCam.refResolutionX / 2, y + ppCam.refResolutionY / 2] = 1;
+                        newTileMap[x + mapSize.x / 2, y + mapSize.y / 2] = 1;
                     }
-                    else if (aliveCells > 1 && aliveCells < 4 && currentTile.name == "white")
+                    else if (aliveCells > 1 && aliveCells < 4 && currentTile == tiles[1])
                     {
-                        newTileMap[x + ppCam.refResolutionX / 2, y + ppCam.refResolutionY / 2] = 1;
+                        newTileMap[x + mapSize.x / 2, y + mapSize.y / 2] = 1;
                     }
                 }
             }
         }
         return newTileMap;
+    }
+
+    private int CompareColors(Tile currentTile)
+    {
+        for (int i = 0; i < tiles.Length; i++)
+        {
+            if (currentTile == tiles[i])
+            {
+                return i;
+            }
+        }
+        return 0;
     }
 
     public void SetTileMap(int[,] newTileMap)
@@ -145,7 +204,7 @@ public class TileMapManager : MonoBehaviour
         {
             for (int b = 0; b < newTileMap.GetLength(1); b++)
             {
-                Vector3Int tilePos = new Vector3Int(-ppCam.refResolutionX / 2 + a, -ppCam.refResolutionY / 2 + b, 0);
+                Vector3Int tilePos = new Vector3Int(-mapSize.x / 2 + a, -mapSize.y / 2 + b, 0);
                 tileMap.SetTile(tilePos, tiles[newTileMap[a, b]]);
             }
         }
