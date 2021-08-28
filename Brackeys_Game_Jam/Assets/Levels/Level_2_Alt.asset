@@ -18,3 +18,4 @@ MonoBehaviour:
   imageSize: 64
   level: {fileID: 2485829419813795203, guid: ff4e1cd462541ac42b9dc1e2be6a2ec1, type: 3}
   numberOfAvailableBlocks: 20
+  targetPosition: {x: 8, y: 6}

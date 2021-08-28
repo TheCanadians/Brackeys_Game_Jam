@@ -14,4 +14,5 @@ public class LevelData : ScriptableObject
     public Tilemap level;
 
     public int numberOfAvailableBlocks;
+    public Vector3Int targetPosition;
 }

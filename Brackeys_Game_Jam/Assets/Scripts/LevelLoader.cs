@@ -10,6 +10,7 @@ public class LevelLoader : MonoBehaviour
     [SerializeField] PixelPerfectCamera ppCam;
     [SerializeField] GameObject grid;
     [SerializeField] TileMapManager mapManager;
+    [SerializeField] UIController uiController;
 
     [SerializeField] LevelData level;
 
@@ -22,17 +23,39 @@ public class LevelLoader : MonoBehaviour
     private Tilemap levelMap;
 
     private int numOfBlocks;
+    private Vector3Int targetBlock;
 
     // Start is called before the first frame update
     void Start()
     {
         if (ppCam == null)
         {
-            ppCam = GameObject.FindObjectOfType<PixelPerfectCamera>();
+            try
+            {
+                ppCam = GameObject.FindObjectOfType<PixelPerfectCamera>();
+            }
+            catch
+            {
+                Debug.LogError("No PixelPerfectCamera Object found!");
+            }
         }
 
         if (level != null)
             LoadLevel(level);
+        else
+            Debug.LogError("No valid Level found!");
+
+        if (uiController == null)
+        {
+            try
+            {
+                uiController = GameObject.FindObjectOfType<UIController>();
+            }
+            catch
+            {
+                Debug.LogError("No UIController in Scene found!");
+            }
+        }
     }
 
     public void LoadLevel(LevelData newLevel)
@@ -51,8 +74,9 @@ public class LevelLoader : MonoBehaviour
         spriteSize = level.imageSize;
         levelMap = level.level;
         numOfBlocks = level.numberOfAvailableBlocks;
+        targetBlock = level.targetPosition;
 
-        mapManager.SetValues(levelSize, numOfBlocks);
+        mapManager.SetValues(levelSize, numOfBlocks, targetBlock);
     }
 
     void SetCamera(Vector2Int camSize)
@@ -77,5 +101,13 @@ public class LevelLoader : MonoBehaviour
             Tilemap newMap = Instantiate(levelMap, grid.transform);
             mapManager.SetTileMap(newMap);
         }
+    }
+
+    public void RestartLevel()
+    {
+        LoadLevelData(level);
+        SetCamera(levelSize);
+        BuildLevel(levelMap);
+        uiController.SetUIState(false, "");
     }
 }

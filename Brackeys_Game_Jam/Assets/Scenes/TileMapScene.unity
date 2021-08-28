@@ -380,5 +380,9 @@ PrefabInstance:
       propertyPath: m_Name
       value: Level_1_TileMap
       objectReference: {fileID: 0}
+    - target: {fileID: 5017010710961369912, guid: ff4e1cd462541ac42b9dc1e2be6a2ec1, type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: ff4e1cd462541ac42b9dc1e2be6a2ec1, type: 3}
